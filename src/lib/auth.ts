@@ -11,7 +11,7 @@ import { verifyTurnstile } from './turnstile'
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(db),
-  session: { strategy: 'database' },
+  session: { strategy: 'jwt' }, // JWT works with Edge Runtime middleware
   providers: [
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
@@ -37,7 +37,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!email || !password) return null
 
-        // Bot check
         const human = await verifyTurnstile(turnstileToken ?? '')
         if (!human) return null
 
@@ -48,14 +47,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await bcrypt.compare(password, user.password)
         if (!valid) return null
 
-        return user
+        return { id: user.id, name: user.name, email: user.email, image: user.image }
       },
     }),
   ],
   callbacks: {
     ...authConfig.callbacks,
-    session({ session, user }) {
-      session.user.id = user.id
+    jwt({ token, user }) {
+      if (user) token.id = user.id
+      return token
+    },
+    session({ session, token }) {
+      if (token?.id) session.user.id = token.id as string
       return session
     },
   },

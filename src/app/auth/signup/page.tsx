@@ -5,7 +5,7 @@ import Link from 'next/link'
 import TurnstileWidget from '@/components/auth/TurnstileWidget'
 
 export default function SignUpPage() {
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
   const [turnstileToken, setTurnstileToken] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -16,12 +16,27 @@ export default function SignUpPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+
+    if (form.password !== form.confirm) {
+      setError('Passwords do not match.')
+      return
+    }
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+
     setLoading(true)
 
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, turnstileToken }),
+      body: JSON.stringify({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        turnstileToken,
+      }),
     })
 
     const data = await res.json()
@@ -39,6 +54,9 @@ export default function SignUpPage() {
           <p className="mt-2 text-sm text-black/50">
             We sent a verification link to <strong>{form.email}</strong>.
             Click it to activate your account.
+          </p>
+          <p className="mt-3 text-xs text-black/30">
+            (No email client set up? Check the server terminal for the link.)
           </p>
           <Link href="/login" className="mt-6 block text-sm text-black underline">
             Back to sign in
@@ -84,10 +102,22 @@ export default function SignUpPage() {
             required
             className="w-full border border-black/15 px-4 py-3 text-sm text-black outline-none placeholder:text-black/30 focus:border-black"
           />
+          <input
+            type="password"
+            placeholder="Confirm password"
+            value={form.confirm}
+            onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))}
+            required
+            className="w-full border border-black/15 px-4 py-3 text-sm text-black outline-none placeholder:text-black/30 focus:border-black"
+          />
 
           <TurnstileWidget onVerify={handleTurnstile} />
 
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && (
+            <p className="border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {error}
+            </p>
+          )}
 
           <button
             type="submit"
